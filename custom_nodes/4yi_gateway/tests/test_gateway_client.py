@@ -14,10 +14,37 @@ from gateway_client import (
     build_video_payload,
     interpret_video_poll,
     parse_image_entries,
+    parse_model_list,
     poll_video_until_complete,
     resolve_gateway_config,
-    resolve_model,
 )
+
+
+# ── model catalog (/models) ──────────────────────────────────────────────────
+
+def test_parse_model_list_filters_by_type_top_level_type_field():
+    body = {"data": [
+        {"id": "gemini-3.1-flash-image", "type": "image"},
+        {"id": "happyhorse-1.1-t2v", "type": "video"},
+        {"id": "gpt-5.5", "type": "chat"},
+        {"id": "gpt-5-image", "type": "image"},
+    ]}
+    assert parse_model_list(body, "image") == ["gemini-3.1-flash-image", "gpt-5-image"]
+    assert parse_model_list(body, "video") == ["happyhorse-1.1-t2v"]
+
+
+def test_parse_model_list_accepts_model_type_and_name_aliases():
+    body = {"data": [
+        {"name": "wan-2.7", "model_type": "video"},
+        {"name": "img-x", "model_type": "image"},
+    ]}
+    assert parse_model_list(body, "video") == ["wan-2.7"]
+
+
+def test_parse_model_list_empty_or_missing_data():
+    assert parse_model_list({}, "image") == []
+    assert parse_model_list({"data": []}, "video") == []
+    assert parse_model_list({"data": [{"id": "x", "type": "chat"}]}, "image") == []
 
 
 # ── config resolution ────────────────────────────────────────────────────────
@@ -51,14 +78,6 @@ def test_resolve_config_missing_base_raises():
 def test_resolve_config_missing_key_raises():
     with pytest.raises(GatewayError, match="IMAGE_API_KEY"):
         resolve_gateway_config({"IMAGE_API_BASE": "https://gw.example.com/api/v1"})
-
-
-def test_resolve_model_env_and_override():
-    env = {"VIDEO_MODEL": "kling-v3-i2v"}
-    assert resolve_model(env, "VIDEO_MODEL") == "kling-v3-i2v"
-    assert resolve_model(env, "VIDEO_MODEL", override="veo-3.1") == "veo-3.1"
-    with pytest.raises(GatewayError, match="VIDEO_MODEL"):
-        resolve_model({}, "VIDEO_MODEL")
 
 
 # ── image payload / response ─────────────────────────────────────────────────

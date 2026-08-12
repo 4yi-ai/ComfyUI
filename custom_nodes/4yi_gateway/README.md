@@ -14,19 +14,25 @@ model weights, letting ComfyUI run on a CPU-only container:
 
 ## Configuration
 
-Zero-config on the 4yi App Platform — these env vars are injected per install:
+Zero-config on the 4yi App Platform — only the gateway address and per-install
+key are injected. No model is chosen at install time:
 
 | Env | Meaning |
 | --- | --- |
 | `IMAGE_API_BASE` / `OPENAI_API_BASE` | Gateway base URL (`https://<origin>/api/v1`) |
 | `IMAGE_API_KEY` / `OPENAI_API_KEY` | Per-install gateway token |
-| `IMAGE_MODEL` | Default image model slot |
-| `VIDEO_MODEL` | Default video model slot |
 
-Every node also has optional `model` / `api_base` / `api_key` fields that
-override the env for that node only. The API key is only ever sent to the
-configured gateway origin (including artifact downloads); other hosts are
-fetched without credentials.
+Each node's `model` field is a **dropdown of the models your plan entitles**,
+fetched from `GET {base}/models` and filtered to the node's kind (image or
+video). Add a node and every model your org can call is already listed — no
+install-time selection, and the list follows your plan automatically. If the
+gateway catalog can't be reached when the node loads, `model` falls back to a
+free-text field so you can still type a name.
+
+Each node also has optional `api_base` / `api_key` fields that override the env
+for that node only. The API key is only ever sent to the configured gateway
+origin (including artifact downloads); other hosts are fetched without
+credentials.
 
 The `seed` widget is a re-run control (`control_after_generate`) so you can
 re-roll a generation without changing the prompt — it is not sent to the

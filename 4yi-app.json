@@ -11,9 +11,5 @@
       "storage": { "sizeGb": 20, "mountPath": "/data" },
       "resources": { "cpu": 1, "memoryMb": 4096 }
     }
-  ],
-  "models": [
-    { "env": "IMAGE_MODEL", "type": "image", "default": "gemini-3.1-flash-image" },
-    { "env": "VIDEO_MODEL", "type": "video", "default": "happyhorse-1.1-t2v" }
   ]
 }

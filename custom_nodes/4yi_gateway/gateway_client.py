@@ -6,7 +6,9 @@ on a bare Python environment. All HTTP and tensor work lives in nodes.py.
 Env contract (injected per-install by the 4yi App Platform):
   IMAGE_API_BASE / OPENAI_API_BASE  -> "<platform-origin>/api/v1"
   IMAGE_API_KEY  / OPENAI_API_KEY   -> per-install gateway token
-  IMAGE_MODEL / VIDEO_MODEL         -> entitlement-validated model slots
+
+No model env is injected: the caller's entitled models are discovered at
+runtime from the gateway's /models endpoint (see parse_model_list).
 """
 
 import json
@@ -51,15 +53,6 @@ def resolve_gateway_config(
     return base.rstrip("/"), key
 
 
-def resolve_model(env: Mapping[str, str], env_name: str, override: str = "") -> str:
-    model = (override or "").strip() or (env.get(env_name) or "").strip()
-    if not model:
-        raise GatewayError(
-            f"model not configured: set {env_name} or fill the node's model field"
-        )
-    return model
-
-
 # ── images ───────────────────────────────────────────────────────────────────
 
 def build_image_payload(model: str, prompt: str, n: int, size: str) -> Dict[str, Any]:
@@ -74,6 +67,23 @@ def build_image_payload(model: str, prompt: str, n: int, size: str) -> Dict[str,
     if size and size != "auto":
         payload["size"] = size
     return payload
+
+
+def parse_model_list(body: Mapping[str, Any], model_type: str) -> List[str]:
+    """Ids of models of `model_type` from an OpenAI-style /models response.
+
+    Accepts both `type`/`model_type` and `id`/`name` spellings so it works
+    against the 4yi gateway (which returns {id, type}) without pinning one shape.
+    """
+    ids: List[str] = []
+    for item in body.get("data") or []:
+        if not isinstance(item, Mapping):
+            continue
+        item_type = item.get("type") or item.get("model_type")
+        model_id = item.get("id") or item.get("name")
+        if item_type == model_type and model_id:
+            ids.append(str(model_id))
+    return ids
 
 
 def parse_image_entries(body: Mapping[str, Any]) -> List[Tuple[str, str]]:

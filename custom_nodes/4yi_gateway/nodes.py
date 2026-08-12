@@ -3,13 +3,17 @@
 The gateway speaks the OpenAI images API (`POST {base}/images/generations`,
 synchronous) and an async video API (`POST {base}/videos/generations` ->
 202 {id}, then `GET {base}/videos/generations/{id}` until completed). Both
-require a Bearer token; the App Platform injects base/key/model env vars per
-install, so on a 4yi deployment the nodes work with no manual configuration.
+require a Bearer token; the App Platform injects only the gateway base URL and
+per-install key (IMAGE_API_BASE / IMAGE_API_KEY). No model is chosen at install
+time: each node fetches the caller's entitled models from `GET {base}/models`
+and offers them as a dropdown, so every model in the org's plan is available.
 """
 
 import asyncio
 import base64
+import json
 import os
+import urllib.request
 from io import BytesIO
 from urllib.parse import urlparse
 
@@ -25,9 +29,9 @@ try:
         build_image_payload,
         build_video_payload,
         parse_image_entries,
+        parse_model_list,
         poll_video_until_complete,
         resolve_gateway_config,
-        resolve_model,
     )
 except ImportError:  # pragma: no cover - direct script/test import
     from gateway_client import (
@@ -35,16 +39,48 @@ except ImportError:  # pragma: no cover - direct script/test import
         build_image_payload,
         build_video_payload,
         parse_image_entries,
+        parse_model_list,
         poll_video_until_complete,
         resolve_gateway_config,
-        resolve_model,
     )
 
 REQUEST_TIMEOUT_SECONDS = 300
 DOWNLOAD_TIMEOUT_SECONDS = 600
 POLL_INTERVAL_SECONDS = 5
+MODELS_TIMEOUT_SECONDS = 5
 
-_OVERRIDE_TOOLTIP = "Optional override; defaults to the env injected by the 4yi App Platform."
+_OVERRIDE_TOOLTIP = "Optional override; leave blank to use the 4yi gateway env."
+
+
+def _model_widget(model_type: str):
+    """Build the `model` widget: a dropdown of the caller's entitled models of
+    `model_type`, fetched from the gateway. Falls back to a free-text field when
+    the catalog can't be fetched at node-definition time (e.g. gateway env not
+    set yet), so the node still loads and a name can be typed manually.
+
+    Called from INPUT_TYPES (no access to the node's own api_base/api_key
+    widgets there), so it reads the injected env for the gateway address.
+    """
+    try:
+        base, key = resolve_gateway_config(os.environ)
+    except GatewayError:
+        return ("STRING", {"default": "", "tooltip": f"{model_type} model name."})
+    models = _list_models(base, key, model_type)
+    if not models:
+        return ("STRING", {"default": "", "tooltip": f"{model_type} model name (gateway catalog unavailable)."})
+    return (models, {"tooltip": f"Choose from your plan's {model_type} models."})
+
+
+def _list_models(base: str, key: str, model_type: str):
+    try:
+        request = urllib.request.Request(
+            f"{base}/models", headers={"Authorization": f"Bearer {key}"}
+        )
+        with urllib.request.urlopen(request, timeout=MODELS_TIMEOUT_SECONDS) as response:
+            body = json.loads(response.read().decode("utf-8"))
+        return parse_model_list(body, model_type)
+    except Exception:
+        return []
 
 
 def _auth_headers(url: str, base: str, key: str) -> dict:
@@ -97,6 +133,7 @@ class FourYiGatewayImageGenerate:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "model": _model_widget("image"),
                 "prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Text prompt for the image model."}),
                 "size": (["auto", "1024x1024", "1536x1024", "1024x1536", "512x512"], {"default": "auto"}),
                 "n": ("INT", {"default": 1, "min": 1, "max": 10, "tooltip": "Number of images to generate."}),
@@ -104,16 +141,16 @@ class FourYiGatewayImageGenerate:
                                  "tooltip": "Re-run control only; not sent to the gateway."}),
             },
             "optional": {
-                "model": ("STRING", {"default": "", "tooltip": f"Image model name. {_OVERRIDE_TOOLTIP}"}),
                 "api_base": ("STRING", {"default": "", "tooltip": f"Gateway base URL (…/api/v1). {_OVERRIDE_TOOLTIP}"}),
                 "api_key": ("STRING", {"default": "", "tooltip": f"Gateway API key. {_OVERRIDE_TOOLTIP}"}),
             },
         }
 
-    async def generate(self, prompt, size, n, seed, model="", api_base="", api_key=""):
+    async def generate(self, model, prompt, size, n, seed, api_base="", api_key=""):
         base, key = resolve_gateway_config(os.environ, override_base=api_base, override_key=api_key)
-        model_name = resolve_model(os.environ, "IMAGE_MODEL", override=model)
-        payload = build_image_payload(model=model_name, prompt=prompt, n=n, size=size)
+        if not str(model).strip():
+            raise GatewayError("no image model selected")
+        payload = build_image_payload(model=str(model).strip(), prompt=prompt, n=n, size=size)
 
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_SECONDS)
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -139,6 +176,7 @@ class FourYiGatewayVideoGenerate:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "model": _model_widget("video"),
                 "prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Text prompt for the video model."}),
                 "duration_seconds": ("INT", {"default": 5, "min": 1, "max": 120}),
                 "resolution": ("STRING", {"default": "", "tooltip": "Optional, model-specific (e.g. 720p, 1080p)."}),
@@ -150,19 +188,19 @@ class FourYiGatewayVideoGenerate:
                 "extra_body": ("STRING", {"multiline": True, "default": "",
                                           "tooltip": "Optional JSON object merged into the request's extra_body."}),
                 "max_wait_seconds": ("INT", {"default": 1200, "min": 60, "max": 3600}),
-                "model": ("STRING", {"default": "", "tooltip": f"Video model name. {_OVERRIDE_TOOLTIP}"}),
                 "api_base": ("STRING", {"default": "", "tooltip": f"Gateway base URL (…/api/v1). {_OVERRIDE_TOOLTIP}"}),
                 "api_key": ("STRING", {"default": "", "tooltip": f"Gateway API key. {_OVERRIDE_TOOLTIP}"}),
             },
         }
 
-    async def generate(self, prompt, duration_seconds, resolution, seed,
+    async def generate(self, model, prompt, duration_seconds, resolution, seed,
                        image_url="", extra_body="", max_wait_seconds=1200,
-                       model="", api_base="", api_key=""):
+                       api_base="", api_key=""):
         base, key = resolve_gateway_config(os.environ, override_base=api_base, override_key=api_key)
-        model_name = resolve_model(os.environ, "VIDEO_MODEL", override=model)
+        if not str(model).strip():
+            raise GatewayError("no video model selected")
         payload = build_video_payload(
-            model=model_name,
+            model=str(model).strip(),
             prompt=prompt,
             duration_seconds=duration_seconds,
             resolution=resolution,
