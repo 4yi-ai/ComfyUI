@@ -1,9 +1,22 @@
 {
   "id": "4a1f0001-0001-4001-8001-000000000001",
   "revision": 0,
-  "last_node_id": 2,
+  "last_node_id": 3,
   "last_link_id": 1,
   "nodes": [
+    {
+      "id": 3,
+      "type": "Note",
+      "pos": [120, 60],
+      "size": [740, 80],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": ["💡 极简模式：点顶部「Graph ▾」→ 切到「App 模式」，界面会变成傻瓜表单（选模型 + 填描述 + 点 Run），不用碰节点。当前是节点图模式，供高级用户自由编排。"]
+    },
     {
       "id": 1,
       "type": "FourYiGatewayImageGenerate",
