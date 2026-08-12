@@ -15,7 +15,7 @@
         { "name": "IMAGE", "type": "IMAGE", "links": [1], "slot_index": 0 }
       ],
       "properties": { "Node name for S&R": "FourYiGatewayImageGenerate" },
-      "widgets_values": ["", "一只柯基在阳光草地上奔跑，电影质感，高细节", "auto", 1, 0, "randomize"]
+      "widgets_values": ["gemini-3.1-flash-image", "一只柯基在阳光草地上奔跑，电影质感，高细节", "auto", 1, 0, "randomize"]
     },
     {
       "id": 2,
