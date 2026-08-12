@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "services": [
+    {
+      "name": "comfyui",
+      "type": "web",
+      "dockerfile": "Dockerfile.4yi",
+      "route": "public",
+      "port": 8188,
+      "healthPath": "/system_stats",
+      "storage": { "sizeGb": 20, "mountPath": "/data" },
+      "resources": { "cpu": 2, "memoryMb": 4096 }
+    }
+  ],
+  "models": [
+    { "env": "IMAGE_MODEL", "type": "image", "default": "gpt-image-1" },
+    { "env": "VIDEO_MODEL", "type": "video", "default": "kling-v3-i2v" }
+  ]
+}

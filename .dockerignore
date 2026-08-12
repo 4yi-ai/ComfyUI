@@ -1,0 +1,15 @@
+.git
+.github
+tests
+tests-unit
+custom_nodes/4yi_gateway/tests
+**/__pycache__
+*.pyc
+output
+input
+temp
+user
+models/checkpoints
+models/diffusion_models
+models/loras
+models/vae

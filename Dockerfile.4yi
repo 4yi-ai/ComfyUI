@@ -1,0 +1,32 @@
+# CPU-only ComfyUI image for the 4yi App Platform.
+# All generation is delegated to 4yi Gateway models via the bundled
+# custom_nodes/4yi_gateway pack, so no GPU and no local checkpoints are needed.
+FROM python:3.12-slim
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# CPU torch wheels first: the bare "torch" pin in requirements.txt would
+# otherwise pull the CUDA-bundled PyPI wheel (~2.5GB of useless nvidia libs).
+COPY requirements.txt ./
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu \
+    && pip install -r requirements.txt
+
+COPY . .
+
+# Persistent state lives on the /data volume; models/ and custom_nodes/ stay
+# baked in the image (--base-directory would hide the bundled node pack).
+RUN mkdir -p /data/input /data/output /data/temp /data/user
+
+EXPOSE 8188
+
+CMD ["python", "main.py", \
+     "--listen", "0.0.0.0", \
+     "--port", "8188", \
+     "--cpu", \
+     "--input-directory", "/data/input", \
+     "--output-directory", "/data/output", \
+     "--temp-directory", "/data/temp", \
+     "--user-directory", "/data/user"]
