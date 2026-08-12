@@ -9,7 +9,7 @@
       "port": 8188,
       "healthPath": "/system_stats",
       "storage": { "sizeGb": 20, "mountPath": "/data" },
-      "resources": { "cpu": 2, "memoryMb": 4096 }
+      "resources": { "cpu": 1, "memoryMb": 4096 }
     }
   ],
   "models": [
