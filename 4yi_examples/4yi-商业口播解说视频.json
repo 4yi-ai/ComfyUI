@@ -1,4 +1,6 @@
 {
+  "id": "4a1f0002-0002-4002-8002-000000000002",
+  "revision": 0,
   "last_node_id": 3,
   "last_link_id": 1,
   "nodes": [
@@ -59,6 +61,15 @@
   "links": [[1, 1, 0, 2, 0, "VIDEO"]],
   "groups": [],
   "config": {},
-  "extra": {},
+  "extra": {
+    "linearData": {
+      "inputs": [
+        ["4a1f0002-0002-4002-8002-000000000002:1:model", "model"],
+        ["4a1f0002-0002-4002-8002-000000000002:1:prompt", "prompt"],
+        ["4a1f0002-0002-4002-8002-000000000002:1:image_url", "image_url"]
+      ],
+      "outputs": ["2"]
+    }
+  },
   "version": 0.4
 }

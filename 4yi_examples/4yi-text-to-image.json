@@ -1,4 +1,6 @@
 {
+  "id": "4a1f0001-0001-4001-8001-000000000001",
+  "revision": 0,
   "last_node_id": 2,
   "last_link_id": 1,
   "nodes": [
@@ -36,6 +38,14 @@
   "links": [[1, 1, 0, 2, 0, "IMAGE"]],
   "groups": [],
   "config": {},
-  "extra": {},
+  "extra": {
+    "linearData": {
+      "inputs": [
+        ["4a1f0001-0001-4001-8001-000000000001:1:model", "model"],
+        ["4a1f0001-0001-4001-8001-000000000001:1:prompt", "prompt"]
+      ],
+      "outputs": ["2"]
+    }
+  },
   "version": 0.4
 }
