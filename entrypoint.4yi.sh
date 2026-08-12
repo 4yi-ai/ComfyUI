@@ -13,6 +13,17 @@ if [ ! -f "$SETTINGS" ]; then
   printf '{"Comfy.Locale": "zh"}\n' > "$SETTINGS"
 fi
 
+# Remove legacy copies of our bundled examples from installs that were seeded
+# before the files were renamed to the ".app.json" suffix (the suffix is what
+# makes a workflow appear in ComfyUI's "Apps" side panel). Without this, an
+# existing volume would show both the old plain-.json and the new .app.json —
+# a confusing duplicate. Only our known bundled names are removed; the user's
+# own workflows are never touched.
+WF=/data/user/default/workflows
+rm -f "$WF/4yi-text-to-image.json" \
+      "$WF/4yi-商业口播解说视频.json" \
+      "$WF/4yi-ecommerce-种草视频.json"
+
 # Refresh the bundled 4yi example workflow(s) on every start, so existing
 # installs (whose volume already has an older copy) also pick up updated
 # templates on their next restart — not just brand-new installs. Only the
@@ -21,7 +32,7 @@ fi
 # edit to a bundled file is replaced on the next restart.
 for src in /app/4yi_examples/*.json; do
   [ -e "$src" ] || continue
-  cp -f "$src" "/data/user/default/workflows/$(basename "$src")"
+  cp -f "$src" "$WF/$(basename "$src")"
 done
 
 # --disable-api-nodes drops ComfyUI's ~125 built-in "partner" nodes, which call

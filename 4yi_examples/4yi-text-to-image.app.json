@@ -15,7 +15,7 @@
       "inputs": [],
       "outputs": [],
       "properties": {},
-      "widgets_values": ["💡 极简模式：点顶部「Graph ▾」→ 切到「App 模式」，界面会变成傻瓜表单（选模型 + 填描述 + 点 Run），不用碰节点。当前是节点图模式，供高级用户自由编排。"]
+      "widgets_values": ["💡 本工作流默认以「App 傻瓜模式」打开（选模型 + 填描述 + 点 Run，不用碰节点）。你现在看到的是节点图 = 高级模式，可自由编排；点顶部「App ▾」可切回傻瓜模式。"]
     },
     {
       "id": 1,
@@ -52,6 +52,7 @@
   "groups": [],
   "config": {},
   "extra": {
+    "linearMode": true,
     "linearData": {
       "inputs": [
         ["4a1f0001-0001-4001-8001-000000000001:1:model", "model"],
