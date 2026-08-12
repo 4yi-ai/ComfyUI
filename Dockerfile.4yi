@@ -22,11 +22,8 @@ RUN mkdir -p /data/input /data/output /data/temp /data/user
 
 EXPOSE 8188
 
-CMD ["python", "main.py", \
-     "--listen", "0.0.0.0", \
-     "--port", "8188", \
-     "--cpu", \
-     "--input-directory", "/data/input", \
-     "--output-directory", "/data/output", \
-     "--temp-directory", "/data/temp", \
-     "--user-directory", "/data/user"]
+# The /data subdirs must be created at RUNTIME: the persistent volume is
+# mounted over /data and masks any dirs baked into the image at build time, so
+# a fresh (empty) volume would leave --user-directory pointing at a missing
+# path and ComfyUI would exit. mkdir here runs after the mount is in place.
+CMD ["sh", "-c", "mkdir -p /data/input /data/output /data/temp /data/user && exec python main.py --listen 0.0.0.0 --port 8188 --cpu --input-directory /data/input --output-directory /data/output --temp-directory /data/temp --user-directory /data/user"]
