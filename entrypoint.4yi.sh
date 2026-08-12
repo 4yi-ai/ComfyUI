@@ -13,13 +13,15 @@ if [ ! -f "$SETTINGS" ]; then
   printf '{"Comfy.Locale": "zh"}\n' > "$SETTINGS"
 fi
 
-# Seed the bundled 4yi example workflow(s) once, so users land with a runnable
-# gateway workflow instead of the stock local-model graph (which needs GPU +
-# multi-GB weights this CPU-only image does not carry).
+# Refresh the bundled 4yi example workflow(s) on every start, so existing
+# installs (whose volume already has an older copy) also pick up updated
+# templates on their next restart — not just brand-new installs. Only the
+# bundled filenames are overwritten; the user's own saved workflows are never
+# touched. To customize an official example, "Save As" a new name — an in-place
+# edit to a bundled file is replaced on the next restart.
 for src in /app/4yi_examples/*.json; do
   [ -e "$src" ] || continue
-  dest="/data/user/default/workflows/$(basename "$src")"
-  [ -f "$dest" ] || cp "$src" "$dest"
+  cp -f "$src" "/data/user/default/workflows/$(basename "$src")"
 done
 
 # --disable-api-nodes drops ComfyUI's ~125 built-in "partner" nodes, which call
