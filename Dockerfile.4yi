@@ -8,6 +8,13 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
+# libX11/libGL are dlopen'd by some stock comfy_extras nodes (e.g. nodes_glsl);
+# without them those nodes fail to import (harmless warning, but keeps the boot
+# log clean and the nodes available).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libx11-6 libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
 # CPU torch wheels first: the bare "torch" pin in requirements.txt would
 # otherwise pull the CUDA-bundled PyPI wheel (~2.5GB of useless nvidia libs).
 COPY requirements.txt ./
@@ -22,8 +29,17 @@ RUN mkdir -p /data/input /data/output /data/temp /data/user
 
 EXPOSE 8188
 
-# The /data subdirs must be created at RUNTIME: the persistent volume is
-# mounted over /data and masks any dirs baked into the image at build time, so
-# a fresh (empty) volume would leave --user-directory pointing at a missing
-# path and ComfyUI would exit. mkdir here runs after the mount is in place.
-CMD ["sh", "-c", "mkdir -p /data/input /data/output /data/temp /data/user && exec python main.py --listen 0.0.0.0 --port 8188 --cpu --input-directory /data/input --output-directory /data/output --temp-directory /data/temp --user-directory /data/user"]
+# Runtime notes baked into the CMD:
+#  - mkdir the /data subdirs at RUNTIME: the persistent volume mounts over /data
+#    and masks any dirs baked at build time, so a fresh volume would leave
+#    --user-directory pointing at a missing path and ComfyUI would exit.
+#  - --enable-cors-header swaps ComfyUI's origin-only middleware (which 403s any
+#    request whose Sec-Fetch-Site is "cross-site") for a CORS middleware. The
+#    4yi platform (bieases.com) and the app host (*.apps-dev.4yi.ai) are
+#    different registrable domains, so the SSO redirect into the app is always
+#    cross-site and would otherwise be blocked. The xclaw-router SSO gate is the
+#    real security boundary here, so ComfyUI's built-in CSRF check is redundant.
+#  - --database-url puts ComfyUI's SQLite on the persistent volume; its default
+#    path is <repo>/user/comfyui.db (/app/user), a dir that doesn't exist in the
+#    image, so init failed with "unable to open database file".
+CMD ["sh", "-c", "mkdir -p /data/input /data/output /data/temp /data/user && exec python main.py --listen 0.0.0.0 --port 8188 --cpu --enable-cors-header '*' --database-url sqlite:////data/user/comfyui.db --input-directory /data/input --output-directory /data/output --temp-directory /data/temp --user-directory /data/user"]
