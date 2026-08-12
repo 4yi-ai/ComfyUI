@@ -12,7 +12,7 @@ WORKDIR /app
 # without them those nodes fail to import (harmless warning, but keeps the boot
 # log clean and the nodes available).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libx11-6 libgl1 libglib2.0-0 \
+    && apt-get install -y --no-install-recommends ca-certificates libx11-6 libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # CPU torch wheels first: the bare "torch" pin in requirements.txt would

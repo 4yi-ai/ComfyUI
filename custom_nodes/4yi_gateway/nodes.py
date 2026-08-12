@@ -12,13 +12,24 @@ and offers them as a dropdown, so every model in the org's plan is available.
 import asyncio
 import base64
 import json
+import logging
 import os
+import ssl
+import time
 import urllib.request
 from io import BytesIO
 from urllib.parse import urlparse
 
 import aiohttp
 import torch
+
+try:  # certifi ships with aiohttp/requests; prefer it so urllib TLS works even
+    import certifi  # if the base image's system CA bundle is missing.
+    _SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
+except Exception:  # pragma: no cover - fall back to the system trust store
+    _SSL_CONTEXT = ssl.create_default_context()
+
+logger = logging.getLogger("4yi_gateway")
 
 from comfy_api.latest import InputImpl
 from comfy_api_nodes.util.conversions import bytesio_to_image_tensor
@@ -47,9 +58,16 @@ except ImportError:  # pragma: no cover - direct script/test import
 REQUEST_TIMEOUT_SECONDS = 300
 DOWNLOAD_TIMEOUT_SECONDS = 600
 POLL_INTERVAL_SECONDS = 5
-MODELS_TIMEOUT_SECONDS = 5
+MODELS_TIMEOUT_SECONDS = 4
+MODELS_CACHE_TTL_SECONDS = 60
 
 _OVERRIDE_TOOLTIP = "Optional override; leave blank to use the 4yi gateway env."
+
+# Cache the /models result per (base, model_type). INPUT_TYPES runs on every
+# /object_info call, so without a cache each catalog build would block on a
+# fresh HTTP round-trip (once per node). On a fetch failure we keep serving the
+# last good list so a transient blip doesn't empty a user's dropdown.
+_models_cache: dict = {}
 
 
 def _model_widget(model_type: str):
@@ -64,6 +82,7 @@ def _model_widget(model_type: str):
     try:
         base, key = resolve_gateway_config(os.environ)
     except GatewayError:
+        logger.warning("4yi model catalog: gateway env not configured; %s field is free-text", model_type)
         return ("STRING", {"default": "", "tooltip": f"{model_type} model name."})
     models = _list_models(base, key, model_type)
     if not models:
@@ -72,15 +91,23 @@ def _model_widget(model_type: str):
 
 
 def _list_models(base: str, key: str, model_type: str):
+    cache_key = (base, model_type)
+    cached = _models_cache.get(cache_key)
+    now = time.monotonic()
+    if cached and now - cached[0] < MODELS_CACHE_TTL_SECONDS:
+        return cached[1]
     try:
         request = urllib.request.Request(
             f"{base}/models", headers={"Authorization": f"Bearer {key}"}
         )
-        with urllib.request.urlopen(request, timeout=MODELS_TIMEOUT_SECONDS) as response:
+        with urllib.request.urlopen(request, timeout=MODELS_TIMEOUT_SECONDS, context=_SSL_CONTEXT) as response:
             body = json.loads(response.read().decode("utf-8"))
-        return parse_model_list(body, model_type)
-    except Exception:
-        return []
+        models = parse_model_list(body, model_type)
+        _models_cache[cache_key] = (now, models)
+        return models
+    except Exception as error:  # log once per failure; keep serving stale list if we have one
+        logger.warning("4yi model catalog: GET %s/models failed for %s: %s", base, model_type, error)
+        return cached[1] if cached else []
 
 
 def _auth_headers(url: str, base: str, key: str) -> dict:
