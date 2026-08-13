@@ -21,7 +21,9 @@ from io import BytesIO
 from urllib.parse import urlparse
 
 import aiohttp
+import numpy as np
 import torch
+from PIL import Image
 
 try:  # certifi ships with aiohttp/requests; prefer it so urllib TLS works even
     import certifi  # if the base image's system CA bundle is missing.
@@ -37,6 +39,7 @@ from comfy_api_nodes.util.conversions import bytesio_to_image_tensor
 try:
     from .gateway_client import (
         GatewayError,
+        build_edit_fields,
         build_image_payload,
         build_video_payload,
         parse_image_entries,
@@ -47,6 +50,7 @@ try:
 except ImportError:  # pragma: no cover - direct script/test import
     from gateway_client import (
         GatewayError,
+        build_edit_fields,
         build_image_payload,
         build_video_payload,
         parse_image_entries,
@@ -149,6 +153,25 @@ async def _download_bytes(session: aiohttp.ClientSession, url: str, base: str, k
         return BytesIO(await response.read())
 
 
+def _image_to_png_bytes(image) -> bytes:
+    """First image of a ComfyUI IMAGE batch ([B,H,W,C] float 0-1) -> PNG bytes."""
+    array = (image[0].clamp(0, 1).cpu().numpy() * 255.0).round().astype(np.uint8)
+    buffer = BytesIO()
+    Image.fromarray(array, mode="RGB").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+async def _post_multipart(session: aiohttp.ClientSession, url: str, fields: dict, image_png: bytes, key: str) -> dict:
+    form = aiohttp.FormData()
+    for name, value in fields.items():
+        form.add_field(name, value)
+    form.add_field("image", image_png, filename="image.png", content_type="image/png")
+    async with session.post(url, data=form, headers={"Authorization": f"Bearer {key}"}) as response:
+        if response.status >= 400:
+            raise GatewayError(f"gateway request failed: {await _read_error(response)}")
+        return await response.json(content_type=None)
+
+
 class FourYiGatewayImageGenerate:
     DESCRIPTION = "Generate images with a 4yi Gateway image model (OpenAI-compatible images API)."
     CATEGORY = "4yi Gateway"
@@ -182,6 +205,52 @@ class FourYiGatewayImageGenerate:
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_SECONDS)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             body = await _post_json(session, f"{base}/images/generations", payload, key)
+            tensors = []
+            for kind, value in parse_image_entries(body):
+                if kind == "b64":
+                    data = BytesIO(base64.b64decode(value))
+                else:
+                    data = await _download_bytes(session, value, base, key)
+                tensors.append(bytesio_to_image_tensor(data, mode="RGB"))
+        return (torch.cat(tensors, dim=0),)
+
+
+class FourYiGatewayImageEdit:
+    DESCRIPTION = "Edit/restyle an uploaded image with a 4yi Gateway image model (OpenAI-compatible images/edits)."
+    CATEGORY = "4yi Gateway"
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "generate"
+    API_NODE = False
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": _model_widget("image"),
+                "image": ("IMAGE", {"tooltip": "Source image to edit (from Load Image)."}),
+                "prompt": ("STRING", {"multiline": True, "default": "",
+                                      "tooltip": "How to edit the image, e.g. 换成纯白背景 / 转成日系插画风。"}),
+                "size": (["auto", "1024x1024", "1536x1024", "1024x1536", "512x512"], {"default": "auto"}),
+                "n": ("INT", {"default": 1, "min": 1, "max": 10}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 2**32 - 1, "control_after_generate": True,
+                                 "tooltip": "Re-run control only; not sent to the gateway."}),
+            },
+            "optional": {
+                "api_base": ("STRING", {"default": "", "tooltip": f"Gateway base URL (…/api/v1). {_OVERRIDE_TOOLTIP}"}),
+                "api_key": ("STRING", {"default": "", "tooltip": f"Gateway API key. {_OVERRIDE_TOOLTIP}"}),
+            },
+        }
+
+    async def generate(self, model, image, prompt, size, n, seed, api_base="", api_key=""):
+        base, key = resolve_gateway_config(os.environ, override_base=api_base, override_key=api_key)
+        if not str(model).strip():
+            raise GatewayError("no image model selected")
+        fields = build_edit_fields(model=str(model).strip(), prompt=prompt, n=n, size=size)
+        image_png = _image_to_png_bytes(image)
+
+        timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_SECONDS)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            body = await _post_multipart(session, f"{base}/images/edits", fields, image_png, key)
             tensors = []
             for kind, value in parse_image_entries(body):
                 if kind == "b64":
@@ -258,10 +327,12 @@ class FourYiGatewayVideoGenerate:
 
 NODE_CLASS_MAPPINGS = {
     "FourYiGatewayImageGenerate": FourYiGatewayImageGenerate,
+    "FourYiGatewayImageEdit": FourYiGatewayImageEdit,
     "FourYiGatewayVideoGenerate": FourYiGatewayVideoGenerate,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FourYiGatewayImageGenerate": "4yi Image Generate (Gateway)",
+    "FourYiGatewayImageEdit": "4yi Image Edit (Gateway)",
     "FourYiGatewayVideoGenerate": "4yi Video Generate (Gateway)",
 }

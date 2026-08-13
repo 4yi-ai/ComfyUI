@@ -1,0 +1,87 @@
+{
+  "id": "4a1f0005-0005-4005-8005-000000000005",
+  "revision": 0,
+  "last_node_id": 4,
+  "last_link_id": 2,
+  "nodes": [
+    {
+      "id": 3,
+      "type": "Note",
+      "pos": [120, 60],
+      "size": [860, 80],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": ["💡 本工作流默认以「App 傻瓜模式」打开（选模型 + 上传原图 + 填改图描述 + 点 Run）。你现在看到的是节点图 = 高级模式；点顶部「App ▾」可切回傻瓜模式。\n\nAI 改图（图生图）：上传一张原图，用文字描述你想怎么改——换背景、换风格、改颜色、去杂物、电商主图化等。模型会在保留主体的基础上按描述重绘。"]
+    },
+    {
+      "id": 4,
+      "type": "LoadImage",
+      "pos": [120, 180],
+      "size": [320, 320],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        { "name": "IMAGE", "type": "IMAGE", "links": [1], "slot_index": 0 },
+        { "name": "MASK", "type": "MASK", "links": null, "slot_index": 1 }
+      ],
+      "properties": { "Node name for S&R": "LoadImage" },
+      "widgets_values": ["example.png", "image"]
+    },
+    {
+      "id": 1,
+      "type": "FourYiGatewayImageEdit",
+      "pos": [480, 180],
+      "size": [360, 260],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        { "name": "image", "type": "IMAGE", "link": 1 }
+      ],
+      "outputs": [
+        { "name": "IMAGE", "type": "IMAGE", "links": [2], "slot_index": 0 }
+      ],
+      "properties": { "Node name for S&R": "FourYiGatewayImageEdit" },
+      "widgets_values": ["gemini-3.1-flash-image", "把背景换成纯白色电商主图背景，保留商品主体与细节不变，光影自然、边缘干净。请把改图要求换成你自己的需求，例如：转成日系插画风 / 去掉背景杂物 / 换成暖色调。", "auto", 1, 0, "randomize"]
+    },
+    {
+      "id": 2,
+      "type": "SaveImage",
+      "pos": [880, 180],
+      "size": [360, 300],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        { "name": "images", "type": "IMAGE", "link": 2 }
+      ],
+      "outputs": [],
+      "properties": { "Node name for S&R": "SaveImage" },
+      "widgets_values": ["4yi-改图"]
+    }
+  ],
+  "links": [
+    [1, 4, 0, 1, 0, "IMAGE"],
+    [2, 1, 0, 2, 0, "IMAGE"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "linearMode": true,
+    "linearData": {
+      "inputs": [
+        ["4a1f0005-0005-4005-8005-000000000005:1:model", "model"],
+        ["4a1f0005-0005-4005-8005-000000000005:4:image", "原图"],
+        ["4a1f0005-0005-4005-8005-000000000005:1:prompt", "改图描述"]
+      ],
+      "outputs": ["2"]
+    }
+  },
+  "version": 0.4
+}

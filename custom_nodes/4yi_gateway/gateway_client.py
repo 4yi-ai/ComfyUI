@@ -69,6 +69,23 @@ def build_image_payload(model: str, prompt: str, n: int, size: str) -> Dict[str,
     return payload
 
 
+def build_edit_fields(model: str, prompt: str, n: int, size: str) -> Dict[str, str]:
+    """Multipart form fields for `POST {base}/images/edits` (the image bytes are
+    added separately by the node). All values are strings, as required by a
+    multipart form."""
+    if not prompt.strip():
+        raise GatewayError("prompt must not be empty")
+    fields: Dict[str, str] = {
+        "model": model,
+        "prompt": prompt,
+        "n": str(min(max(int(n), IMAGE_N_MIN), IMAGE_N_MAX)),
+        "response_format": "b64_json",
+    }
+    if size and size != "auto":
+        fields["size"] = size
+    return fields
+
+
 def parse_model_list(body: Mapping[str, Any], model_type: str) -> List[str]:
     """Ids of models of `model_type` from an OpenAI-style /models response.
 

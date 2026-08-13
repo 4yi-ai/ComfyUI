@@ -1,0 +1,76 @@
+{
+  "id": "4a1f0004-0004-4004-8004-000000000004",
+  "revision": 0,
+  "last_node_id": 3,
+  "last_link_id": 1,
+  "nodes": [
+    {
+      "id": 3,
+      "type": "Note",
+      "pos": [120, 60],
+      "size": [840, 70],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": ["💡 本工作流默认以「App 傻瓜模式」打开（选模型 + 填描述 + 填照片 URL + 点 Run）。你现在看到的是节点图 = 高级模式；点顶部「App ▾」可切回傻瓜模式。\n\n照片动起来：把一张静态照片变成有电影感微动态的短片。把你的照片公开 https URL 填进 image_url，描述里写你想要的运动（如「云在飘、头发轻拂、镜头缓慢推近」）。"]
+    },
+    {
+      "id": 1,
+      "type": "FourYiGatewayVideoGenerate",
+      "pos": [120, 180],
+      "size": [440, 340],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        { "name": "VIDEO", "type": "VIDEO", "links": [1], "slot_index": 0 }
+      ],
+      "properties": { "Node name for S&R": "FourYiGatewayVideoGenerate" },
+      "widgets_values": [
+        "happyhorse-1.1-t2v",
+        "让照片自然地动起来，保持画面主体与构图不变，只添加细腻真实的微动态：轻风吹动的发丝与衣角、缓缓流动的云与光影、镜头极缓慢的推近。电影级质感，避免夸张变形。请按你的照片内容微调运动描述。",
+        5,
+        "",
+        0,
+        "randomize",
+        "",
+        "",
+        1200
+      ]
+    },
+    {
+      "id": 2,
+      "type": "SaveVideo",
+      "pos": [620, 180],
+      "size": [360, 260],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        { "name": "video", "type": "VIDEO", "link": 1 }
+      ],
+      "outputs": [],
+      "properties": { "Node name for S&R": "SaveVideo" },
+      "widgets_values": ["video/4yi-照片动起来", "auto", "auto"]
+    }
+  ],
+  "links": [[1, 1, 0, 2, 0, "VIDEO"]],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "linearMode": true,
+    "linearData": {
+      "inputs": [
+        ["4a1f0004-0004-4004-8004-000000000004:1:model", "model"],
+        ["4a1f0004-0004-4004-8004-000000000004:1:prompt", "prompt"],
+        ["4a1f0004-0004-4004-8004-000000000004:1:image_url", "image_url"]
+      ],
+      "outputs": ["2"]
+    }
+  },
+  "version": 0.4
+}

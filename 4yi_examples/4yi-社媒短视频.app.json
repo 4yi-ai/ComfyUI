@@ -1,0 +1,75 @@
+{
+  "id": "4a1f0003-0003-4003-8003-000000000003",
+  "revision": 0,
+  "last_node_id": 3,
+  "last_link_id": 1,
+  "nodes": [
+    {
+      "id": 3,
+      "type": "Note",
+      "pos": [120, 60],
+      "size": [840, 70],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": ["💡 本工作流默认以「App 傻瓜模式」打开（选模型 + 填描述 + 点 Run）。你现在看到的是节点图 = 高级模式；点顶部「App ▾」可切回傻瓜模式。\n\n社媒短视频：纯文字生成竖屏/横屏短视频，适合 TikTok / 抖音 / Reels 的高频出片。把描述换成你的场景、主体、运镜即可。"]
+    },
+    {
+      "id": 1,
+      "type": "FourYiGatewayVideoGenerate",
+      "pos": [120, 180],
+      "size": [440, 340],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        { "name": "VIDEO", "type": "VIDEO", "links": [1], "slot_index": 0 }
+      ],
+      "properties": { "Node name for S&R": "FourYiGatewayVideoGenerate" },
+      "widgets_values": [
+        "happyhorse-1.1-t2v",
+        "社交媒体竖屏短视频，节奏明快，色彩鲜明有网感。场景：城市街头咖啡店，暖阳斜射，浅景深。主体：一杯冒着热气的拿铁被缓缓推近，奶泡拉花清晰，背景行人虚化流动。运镜：由远及近的推镜 + 轻微手持晃动，结尾定格产品特写。氛围：治愈、生活方式、种草。请把「场景」「主体」「运镜」按你的内容替换。",
+        5,
+        "",
+        0,
+        "randomize",
+        "",
+        "",
+        1200
+      ]
+    },
+    {
+      "id": 2,
+      "type": "SaveVideo",
+      "pos": [620, 180],
+      "size": [360, 260],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        { "name": "video", "type": "VIDEO", "link": 1 }
+      ],
+      "outputs": [],
+      "properties": { "Node name for S&R": "SaveVideo" },
+      "widgets_values": ["video/4yi-社媒短视频", "auto", "auto"]
+    }
+  ],
+  "links": [[1, 1, 0, 2, 0, "VIDEO"]],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "linearMode": true,
+    "linearData": {
+      "inputs": [
+        ["4a1f0003-0003-4003-8003-000000000003:1:model", "model"],
+        ["4a1f0003-0003-4003-8003-000000000003:1:prompt", "prompt"]
+      ],
+      "outputs": ["2"]
+    }
+  },
+  "version": 0.4
+}

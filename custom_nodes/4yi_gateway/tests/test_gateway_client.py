@@ -10,6 +10,7 @@ import pytest
 
 from gateway_client import (
     GatewayError,
+    build_edit_fields,
     build_image_payload,
     build_video_payload,
     interpret_video_poll,
@@ -18,6 +19,31 @@ from gateway_client import (
     poll_video_until_complete,
     resolve_gateway_config,
 )
+
+
+# ── image edit (multipart form fields) ───────────────────────────────────────
+
+def test_build_edit_fields_basic():
+    fields = build_edit_fields(model="gemini-3.1-flash-image", prompt="把背景换成纯白", n=1, size="1024x1024")
+    assert fields == {
+        "model": "gemini-3.1-flash-image",
+        "prompt": "把背景换成纯白",
+        "n": "1",
+        "size": "1024x1024",
+        "response_format": "b64_json",
+    }
+
+
+def test_build_edit_fields_omits_auto_size_clamps_n_and_stringifies():
+    fields = build_edit_fields(model="m", prompt="p", n=99, size="auto")
+    assert "size" not in fields
+    assert fields["n"] == "10"        # clamped, and a string (multipart form value)
+    assert build_edit_fields(model="m", prompt="p", n=0, size="auto")["n"] == "1"
+
+
+def test_build_edit_fields_requires_prompt():
+    with pytest.raises(GatewayError, match="prompt"):
+        build_edit_fields(model="m", prompt="   ", n=1, size="auto")
 
 
 # ── model catalog (/models) ──────────────────────────────────────────────────
