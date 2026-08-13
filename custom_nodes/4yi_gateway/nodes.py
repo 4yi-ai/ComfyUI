@@ -59,7 +59,8 @@ except ImportError:  # pragma: no cover - direct script/test import
         resolve_gateway_config,
     )
 
-I2V_MIN_FRAME_SIDE = 300  # i2v providers reject frames smaller than this (px).
+I2V_MIN_FRAME_SIDE = 300   # i2v providers reject frames smaller than this (px).
+I2V_MAX_FRAME_SIDE = 1280  # cap the long side so the inlined frame stays small.
 REQUEST_TIMEOUT_SECONDS = 300
 DOWNLOAD_TIMEOUT_SECONDS = 600
 POLL_INTERVAL_SECONDS = 5
@@ -158,23 +159,35 @@ async def _download_bytes(session: aiohttp.ClientSession, url: str, base: str, k
         return BytesIO(await response.read())
 
 
-def _image_to_png_bytes(image, min_side: int = 0) -> bytes:
-    """First image of a ComfyUI IMAGE batch ([B,H,W,C] float 0-1) -> PNG bytes.
+def _image_to_png_bytes(image) -> bytes:
+    """First image of a ComfyUI IMAGE batch ([B,H,W,C] float 0-1) -> PNG bytes."""
+    array = (image[0].clamp(0, 1).cpu().numpy() * 255.0).round().astype(np.uint8)
+    buffer = BytesIO()
+    Image.fromarray(array, mode="RGB").save(buffer, format="PNG")
+    return buffer.getvalue()
 
-    min_side: when > 0, upscale (preserving aspect ratio) so both dimensions are
-    at least min_side. Image-to-video providers reject small frames (e.g.
-    happyhorse-1.1-i2v requires >= 300x300); this keeps a thumbnail-sized upload
-    from failing validation.
+
+def _image_to_i2v_data_url(image, min_side: int = I2V_MIN_FRAME_SIDE, max_side: int = I2V_MAX_FRAME_SIDE) -> str:
+    """First frame of an IMAGE batch -> a compact JPEG data URL for image-to-video.
+
+    Resizes so the long side <= max_side (keeps the base64 payload small so the
+    provider's task-create call doesn't time out on large photos) and the short
+    side >= min_side (providers reject frames below 300x300), then JPEG-encodes.
     """
     array = (image[0].clamp(0, 1).cpu().numpy() * 255.0).round().astype(np.uint8)
     pil = Image.fromarray(array, mode="RGB")
-    if min_side > 0 and (pil.width < min_side or pil.height < min_side):
-        scale = max(min_side / pil.width, min_side / pil.height)
-        new_size = (max(min_side, round(pil.width * scale)), max(min_side, round(pil.height * scale)))
-        pil = pil.resize(new_size, Image.LANCZOS)
+    w, h = pil.size
+    if max(w, h) > max_side:
+        s = max_side / max(w, h)
+        w, h = round(w * s), round(h * s)
+    if min(w, h) < min_side:
+        s = min_side / min(w, h)
+        w, h = round(w * s), round(h * s)
+    if (w, h) != pil.size:
+        pil = pil.resize((max(1, w), max(1, h)), Image.LANCZOS)
     buffer = BytesIO()
-    pil.save(buffer, format="PNG")
-    return buffer.getvalue()
+    pil.save(buffer, format="JPEG", quality=90)
+    return "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
 async def _post_multipart(session: aiohttp.ClientSession, url: str, fields: dict, image_png: bytes, key: str) -> dict:
@@ -318,10 +331,11 @@ class FourYiGatewayVideoGenerate:
         # allowlist only vets http(s) URLs, so a data URL passes through).
         first_frame = str(image_url).strip()
         if image is not None:
-            # i2v providers require a minimum first-frame resolution (Bailian
-            # happyhorse-1.1-i2v: >= 300x300); upscale small uploads to clear it.
-            png = _image_to_png_bytes(image, min_side=I2V_MIN_FRAME_SIDE)
-            first_frame = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+            # Inline the uploaded first frame as a compact JPEG data URL: capped
+            # to <=1280 long side (so a large photo's payload doesn't time out the
+            # provider's task-create call) and >=300 short side (providers reject
+            # frames below 300x300).
+            first_frame = _image_to_i2v_data_url(image)
         payload = build_video_payload(
             model=str(model).strip(),
             prompt=prompt,
