@@ -59,6 +59,7 @@ except ImportError:  # pragma: no cover - direct script/test import
         resolve_gateway_config,
     )
 
+I2V_MIN_FRAME_SIDE = 300  # i2v providers reject frames smaller than this (px).
 REQUEST_TIMEOUT_SECONDS = 300
 DOWNLOAD_TIMEOUT_SECONDS = 600
 POLL_INTERVAL_SECONDS = 5
@@ -157,11 +158,22 @@ async def _download_bytes(session: aiohttp.ClientSession, url: str, base: str, k
         return BytesIO(await response.read())
 
 
-def _image_to_png_bytes(image) -> bytes:
-    """First image of a ComfyUI IMAGE batch ([B,H,W,C] float 0-1) -> PNG bytes."""
+def _image_to_png_bytes(image, min_side: int = 0) -> bytes:
+    """First image of a ComfyUI IMAGE batch ([B,H,W,C] float 0-1) -> PNG bytes.
+
+    min_side: when > 0, upscale (preserving aspect ratio) so both dimensions are
+    at least min_side. Image-to-video providers reject small frames (e.g.
+    happyhorse-1.1-i2v requires >= 300x300); this keeps a thumbnail-sized upload
+    from failing validation.
+    """
     array = (image[0].clamp(0, 1).cpu().numpy() * 255.0).round().astype(np.uint8)
+    pil = Image.fromarray(array, mode="RGB")
+    if min_side > 0 and (pil.width < min_side or pil.height < min_side):
+        scale = max(min_side / pil.width, min_side / pil.height)
+        new_size = (max(min_side, round(pil.width * scale)), max(min_side, round(pil.height * scale)))
+        pil = pil.resize(new_size, Image.LANCZOS)
     buffer = BytesIO()
-    Image.fromarray(array, mode="RGB").save(buffer, format="PNG")
+    pil.save(buffer, format="PNG")
     return buffer.getvalue()
 
 
@@ -306,7 +318,10 @@ class FourYiGatewayVideoGenerate:
         # allowlist only vets http(s) URLs, so a data URL passes through).
         first_frame = str(image_url).strip()
         if image is not None:
-            first_frame = "data:image/png;base64," + base64.b64encode(_image_to_png_bytes(image)).decode("ascii")
+            # i2v providers require a minimum first-frame resolution (Bailian
+            # happyhorse-1.1-i2v: >= 300x300); upscale small uploads to clear it.
+            png = _image_to_png_bytes(image, min_side=I2V_MIN_FRAME_SIDE)
+            first_frame = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
         payload = build_video_payload(
             model=str(model).strip(),
             prompt=prompt,
