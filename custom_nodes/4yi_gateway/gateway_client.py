@@ -145,7 +145,15 @@ def build_video_payload(
 
     extra_body: Dict[str, Any] = {}
     if image_url.strip():
-        extra_body["first_frame"] = image_url.strip()
+        ref = image_url.strip()
+        # Providers read the i2v first frame from different fields:
+        #   - Bailian / Studio-configured models -> __studio_reference_images
+        #     (the gateway maps this into DashScope input.media; without it the
+        #     provider rejects with "Field required: input.media")
+        #   - OpenRouter / generic -> first_frame
+        # Send both so image-to-video works regardless of the model's provider.
+        extra_body["first_frame"] = ref
+        extra_body["__studio_reference_images"] = [ref]
     if extra_body_json.strip():
         try:
             parsed = json.loads(extra_body_json)

@@ -188,7 +188,12 @@ def test_build_video_payload_omits_empty_resolution():
 def test_build_video_payload_i2v_via_image_url():
     payload = build_video_payload(model="kling-v3-i2v", prompt="p", duration_seconds=5, resolution="", image_url="https://cdn.example.com/frame.png")
     assert payload["mode"] == "image_to_video"
-    assert payload["extra_body"] == {"first_frame": "https://cdn.example.com/frame.png"}
+    # First frame is sent in BOTH channels so it works across providers:
+    # Bailian reads __studio_reference_images, OpenRouter reads first_frame.
+    assert payload["extra_body"] == {
+        "first_frame": "https://cdn.example.com/frame.png",
+        "__studio_reference_images": ["https://cdn.example.com/frame.png"],
+    }
 
 
 def test_build_video_payload_merges_extra_body_json():
@@ -197,7 +202,11 @@ def test_build_video_payload_merges_extra_body_json():
         image_url="https://cdn.example.com/frame.png",
         extra_body_json='{"aspect_ratio": "16:9"}',
     )
-    assert payload["extra_body"] == {"first_frame": "https://cdn.example.com/frame.png", "aspect_ratio": "16:9"}
+    assert payload["extra_body"] == {
+        "first_frame": "https://cdn.example.com/frame.png",
+        "__studio_reference_images": ["https://cdn.example.com/frame.png"],
+        "aspect_ratio": "16:9",
+    }
 
 
 def test_build_video_payload_rejects_bad_extra_body():
