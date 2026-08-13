@@ -1,38 +1,56 @@
 {
   "id": "4a1f0002-0002-4002-8002-000000000002",
   "revision": 0,
-  "last_node_id": 3,
-  "last_link_id": 1,
+  "last_node_id": 4,
+  "last_link_id": 2,
   "nodes": [
     {
       "id": 3,
       "type": "Note",
       "pos": [120, 60],
-      "size": [840, 70],
+      "size": [860, 80],
       "flags": {},
       "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [],
       "properties": {},
-      "widgets_values": ["💡 本工作流默认以「App 傻瓜模式」打开（选模型 + 填描述 +（可选）人物图 URL + 点 Run）。你现在看到的是节点图 = 高级模式；点顶部「App ▾」可切回傻瓜模式。\n\n商业口播解说视频：默认文生视频。把「人物/参考图 URL」填进 image_url（公开 https 图片），即以你的人物为主体做图生视频。真人对口型+配音暂不支持，属运动/口播质感视频。"]
+      "widgets_values": ["💡 本工作流默认以「App 傻瓜模式」打开（选模型 + 上传人物图 + 填口播内容 + 点 Run）。你现在看到的是节点图 = 高级模式；点顶部「App ▾」可切回傻瓜模式。\n\n商业口播解说视频：上传一张人物/主体图，以其为主体生成口播解说视频。真人对口型+配音暂不支持，属运动/口播质感视频。"]
     },
     {
-      "id": 1,
-      "type": "FourYiGatewayVideoGenerate",
+      "id": 4,
+      "type": "LoadImage",
       "pos": [120, 180],
-      "size": [440, 340],
+      "size": [300, 320],
       "flags": {},
       "order": 1,
       "mode": 0,
       "inputs": [],
+      "outputs": [
+        { "name": "IMAGE", "type": "IMAGE", "links": [2], "slot_index": 0 },
+        { "name": "MASK", "type": "MASK", "links": null, "slot_index": 1 }
+      ],
+      "properties": { "Node name for S&R": "LoadImage" },
+      "widgets_values": ["example.png", "image"]
+    },
+    {
+      "id": 1,
+      "type": "FourYiGatewayVideoGenerate",
+      "pos": [460, 180],
+      "size": [440, 340],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        { "name": "image", "type": "IMAGE", "link": 2 }
+      ],
       "outputs": [
         { "name": "VIDEO", "type": "VIDEO", "links": [1], "slot_index": 0 }
       ],
       "properties": { "Node name for S&R": "FourYiGatewayVideoGenerate" },
       "widgets_values": [
         "happyhorse-1.1-t2v",
-        "专业商业口播解说视频。场景：现代简约办公空间，暖色柔光，浅景深虚化背景，品牌感强。人物：一位专业女性主讲人，商务休闲着装，面向镜头自信讲解产品卖点，手势自然，微笑亲和，口型自然。运镜：缓慢推近的中近景，轻微手持质感，节奏稳定，电影级打光与肤质细节。用途：品牌宣传 / 电商带货 / 知识科普口播。请把「场景」「人物」「产品卖点」按你的商业需求替换。",
+        "专业商业口播解说视频。以上传的人物为主讲人：商务休闲着装，面向镜头自信讲解产品卖点，手势自然，微笑亲和，口型自然。场景：现代简约办公空间，暖色柔光，浅景深虚化背景，品牌感强。运镜：缓慢推近的中近景，轻微手持质感，节奏稳定，电影级打光与肤质细节。用途：品牌宣传 / 电商带货 / 知识科普口播。请把「产品卖点」按你的商业需求替换。",
         5,
         "",
         0,
@@ -45,10 +63,10 @@
     {
       "id": 2,
       "type": "SaveVideo",
-      "pos": [620, 180],
+      "pos": [920, 180],
       "size": [360, 260],
       "flags": {},
-      "order": 2,
+      "order": 3,
       "mode": 0,
       "inputs": [
         { "name": "video", "type": "VIDEO", "link": 1 }
@@ -58,7 +76,10 @@
       "widgets_values": ["video/4yi-口播解说", "auto", "auto"]
     }
   ],
-  "links": [[1, 1, 0, 2, 0, "VIDEO"]],
+  "links": [
+    [1, 1, 0, 2, 0, "VIDEO"],
+    [2, 4, 0, 1, 0, "IMAGE"]
+  ],
   "groups": [],
   "config": {},
   "extra": {
@@ -66,8 +87,8 @@
     "linearData": {
       "inputs": [
         ["4a1f0002-0002-4002-8002-000000000002:1:model", "model"],
-        ["4a1f0002-0002-4002-8002-000000000002:1:prompt", "prompt"],
-        ["4a1f0002-0002-4002-8002-000000000002:1:image_url", "image_url"]
+        ["4a1f0002-0002-4002-8002-000000000002:4:image", "人物图"],
+        ["4a1f0002-0002-4002-8002-000000000002:1:prompt", "口播内容"]
       ],
       "outputs": ["2"]
     }

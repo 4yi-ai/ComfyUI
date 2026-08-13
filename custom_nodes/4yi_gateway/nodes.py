@@ -280,7 +280,8 @@ class FourYiGatewayVideoGenerate:
                                  "tooltip": "Re-run control only; not sent to the gateway."}),
             },
             "optional": {
-                "image_url": ("STRING", {"default": "", "tooltip": "Public https image URL; switches to image-to-video."}),
+                "image": ("IMAGE", {"tooltip": "上传首帧图 = 图生视频(从 Load Image 连入);留空 = 纯文生视频。优先于 image_url。"}),
+                "image_url": ("STRING", {"default": "", "tooltip": "Public https image URL; switches to image-to-video. Ignored when an image is connected."}),
                 "extra_body": ("STRING", {"multiline": True, "default": "",
                                           "tooltip": "Optional JSON object merged into the request's extra_body."}),
                 "max_wait_seconds": ("INT", {"default": 1200, "min": 60, "max": 3600}),
@@ -290,17 +291,24 @@ class FourYiGatewayVideoGenerate:
         }
 
     async def generate(self, model, prompt, duration_seconds, resolution, seed,
-                       image_url="", extra_body="", max_wait_seconds=1200,
+                       image=None, image_url="", extra_body="", max_wait_seconds=1200,
                        api_base="", api_key=""):
         base, key = resolve_gateway_config(os.environ, override_base=api_base, override_key=api_key)
         if not str(model).strip():
             raise GatewayError("no video model selected")
+        # An uploaded first frame (from Load Image) takes precedence over a URL:
+        # inline it as a base64 data URL, which the gateway i2v path accepts
+        # (DashScope/Bailian consume data:image/…;base64 directly; the SSRF
+        # allowlist only vets http(s) URLs, so a data URL passes through).
+        first_frame = str(image_url).strip()
+        if image is not None:
+            first_frame = "data:image/png;base64," + base64.b64encode(_image_to_png_bytes(image)).decode("ascii")
         payload = build_video_payload(
             model=str(model).strip(),
             prompt=prompt,
             duration_seconds=duration_seconds,
             resolution=resolution,
-            image_url=image_url,
+            image_url=first_frame,
             extra_body_json=extra_body,
         )
 
