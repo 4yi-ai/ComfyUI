@@ -74,11 +74,15 @@ _OVERRIDE_TOOLTIP = "Optional override; leave blank to use the 4yi gateway env."
 _models_cache: dict = {}
 
 
-def _model_widget(model_type: str):
+def _model_widget(model_type: str, image_input_only: bool = False):
     """Build the `model` widget: a dropdown of the caller's entitled models of
     `model_type`, fetched from the gateway. Falls back to a free-text field when
     the catalog can't be fetched at node-definition time (e.g. gateway env not
     set yet), so the node still loads and a name can be typed manually.
+
+    image_input_only: for the image-to-video node, list only video models the
+    gateway marks as accepting an input image, so a text-to-video model is never
+    offered for an i2v workflow.
 
     Called from INPUT_TYPES (no access to the node's own api_base/api_key
     widgets there), so it reads the injected env for the gateway address.
@@ -88,14 +92,14 @@ def _model_widget(model_type: str):
     except GatewayError:
         logger.warning("4yi model catalog: gateway env not configured; %s field is free-text", model_type)
         return ("STRING", {"default": "", "tooltip": f"{model_type} model name."})
-    models = _list_models(base, key, model_type)
+    models = _list_models(base, key, model_type, image_input_only)
     if not models:
         return ("STRING", {"default": "", "tooltip": f"{model_type} model name (gateway catalog unavailable)."})
     return (models, {"tooltip": f"Choose from your plan's {model_type} models."})
 
 
-def _list_models(base: str, key: str, model_type: str):
-    cache_key = (base, model_type)
+def _list_models(base: str, key: str, model_type: str, image_input_only: bool = False):
+    cache_key = (base, model_type, image_input_only)
     cached = _models_cache.get(cache_key)
     now = time.monotonic()
     if cached and now - cached[0] < MODELS_CACHE_TTL_SECONDS:
@@ -106,7 +110,7 @@ def _list_models(base: str, key: str, model_type: str):
         )
         with urllib.request.urlopen(request, timeout=MODELS_TIMEOUT_SECONDS, context=_SSL_CONTEXT) as response:
             body = json.loads(response.read().decode("utf-8"))
-        models = parse_model_list(body, model_type)
+        models = parse_model_list(body, model_type, image_input_only)
         _models_cache[cache_key] = (now, models)
         return models
     except Exception as error:  # log once per failure; keep serving stale list if we have one
@@ -333,14 +337,47 @@ class FourYiGatewayVideoGenerate:
         return (InputImpl.VideoFromFile(data),)
 
 
+class FourYiGatewayImageToVideo(FourYiGatewayVideoGenerate):
+    DESCRIPTION = "Image-to-video with a 4yi Gateway i2v/r2v model: upload a first frame + prompt."
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                # Only video models the gateway marks as accepting an input image
+                # (i2v/first-frame/reference); text-to-video models are excluded.
+                "model": _model_widget("video", image_input_only=True),
+                "image": ("IMAGE", {"tooltip": "首帧图(从 Load Image 连入):以这张图为基础生成视频。"}),
+                "prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Text prompt for the video model."}),
+                "duration_seconds": ("INT", {"default": 5, "min": 1, "max": 120}),
+                "resolution": ("STRING", {"default": "", "tooltip": "Optional, model-specific (e.g. 720p, 1080p)."}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 2**32 - 1, "control_after_generate": True,
+                                 "tooltip": "Re-run control only; not sent to the gateway."}),
+            },
+            "optional": {
+                "extra_body": ("STRING", {"multiline": True, "default": "",
+                                          "tooltip": "Optional JSON object merged into the request's extra_body."}),
+                "max_wait_seconds": ("INT", {"default": 1200, "min": 60, "max": 3600}),
+                "api_base": ("STRING", {"default": "", "tooltip": f"Gateway base URL (…/api/v1). {_OVERRIDE_TOOLTIP}"}),
+                "api_key": ("STRING", {"default": "", "tooltip": f"Gateway API key. {_OVERRIDE_TOOLTIP}"}),
+            },
+        }
+
+    # generate() is inherited from FourYiGatewayVideoGenerate: ComfyUI passes
+    # inputs by keyword, so the required `image` maps to the same param and is
+    # inlined as the i2v first frame.
+
+
 NODE_CLASS_MAPPINGS = {
     "FourYiGatewayImageGenerate": FourYiGatewayImageGenerate,
     "FourYiGatewayImageEdit": FourYiGatewayImageEdit,
     "FourYiGatewayVideoGenerate": FourYiGatewayVideoGenerate,
+    "FourYiGatewayImageToVideo": FourYiGatewayImageToVideo,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FourYiGatewayImageGenerate": "4yi Image Generate (Gateway)",
     "FourYiGatewayImageEdit": "4yi Image Edit (Gateway)",
     "FourYiGatewayVideoGenerate": "4yi Video Generate (Gateway)",
+    "FourYiGatewayImageToVideo": "4yi Image-to-Video (Gateway)",
 }

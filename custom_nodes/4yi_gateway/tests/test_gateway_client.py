@@ -59,6 +59,29 @@ def test_parse_model_list_filters_by_type_top_level_type_field():
     assert parse_model_list(body, "video") == ["happyhorse-1.1-t2v"]
 
 
+def test_parse_model_list_image_input_only_keeps_image_capable_video_models():
+    body = {"data": [
+        {"id": "happyhorse-1.1-t2v", "type": "video", "video_image_input": False},
+        {"id": "klingai/kling-v3-i2v", "type": "video", "video_image_input": True},
+        {"id": "klingai/kling-v3-omni-ref2v", "type": "video", "video_image_input": True},
+        {"id": "gpt-4o", "type": "chat"},
+    ]}
+    # Without the flag: all video models.
+    assert parse_model_list(body, "video") == [
+        "happyhorse-1.1-t2v", "klingai/kling-v3-i2v", "klingai/kling-v3-omni-ref2v",
+    ]
+    # image_input_only: drops the t2v model, keeps i2v/r2v.
+    assert parse_model_list(body, "video", image_input_only=True) == [
+        "klingai/kling-v3-i2v", "klingai/kling-v3-omni-ref2v",
+    ]
+
+
+def test_parse_model_list_image_input_only_absent_flag_is_excluded():
+    # A video model with no video_image_input field is treated as not image-capable.
+    body = {"data": [{"id": "legacy-video", "type": "video"}]}
+    assert parse_model_list(body, "video", image_input_only=True) == []
+
+
 def test_parse_model_list_accepts_model_type_and_name_aliases():
     body = {"data": [
         {"name": "wan-2.7", "model_type": "video"},

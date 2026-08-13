@@ -35,7 +35,7 @@
     },
     {
       "id": 1,
-      "type": "FourYiGatewayVideoGenerate",
+      "type": "FourYiGatewayImageToVideo",
       "pos": [460, 180],
       "size": [420, 320],
       "flags": {},
@@ -47,15 +47,14 @@
       "outputs": [
         { "name": "VIDEO", "type": "VIDEO", "links": [1], "slot_index": 0 }
       ],
-      "properties": { "Node name for S&R": "FourYiGatewayVideoGenerate" },
+      "properties": { "Node name for S&R": "FourYiGatewayImageToVideo" },
       "widgets_values": [
-        "happyhorse-1.1-t2v",
+        "klingai/kling-v3-i2v",
         "让照片自然地动起来，保持画面主体与构图不变，只添加细腻真实的微动态：轻风吹动的发丝与衣角、缓缓流动的云与光影、镜头极缓慢的推近。电影级质感，避免夸张变形。请按你的照片内容微调运动描述。",
         5,
         "",
         0,
         "randomize",
-        "",
         "",
         1200
       ]

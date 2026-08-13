@@ -35,7 +35,7 @@
     },
     {
       "id": 1,
-      "type": "FourYiGatewayVideoGenerate",
+      "type": "FourYiGatewayImageToVideo",
       "pos": [460, 180],
       "size": [440, 340],
       "flags": {},
@@ -47,15 +47,14 @@
       "outputs": [
         { "name": "VIDEO", "type": "VIDEO", "links": [1], "slot_index": 0 }
       ],
-      "properties": { "Node name for S&R": "FourYiGatewayVideoGenerate" },
+      "properties": { "Node name for S&R": "FourYiGatewayImageToVideo" },
       "widgets_values": [
-        "happyhorse-1.1-t2v",
+        "klingai/kling-v3-i2v",
         "专业商业口播解说视频。以上传的人物为主讲人：商务休闲着装，面向镜头自信讲解产品卖点，手势自然，微笑亲和，口型自然。场景：现代简约办公空间，暖色柔光，浅景深虚化背景，品牌感强。运镜：缓慢推近的中近景，轻微手持质感，节奏稳定，电影级打光与肤质细节。用途：品牌宣传 / 电商带货 / 知识科普口播。请把「产品卖点」按你的商业需求替换。",
         5,
         "",
         0,
         "randomize",
-        "",
         "",
         1200
       ]

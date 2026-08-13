@@ -86,11 +86,17 @@ def build_edit_fields(model: str, prompt: str, n: int, size: str) -> Dict[str, s
     return fields
 
 
-def parse_model_list(body: Mapping[str, Any], model_type: str) -> List[str]:
+def parse_model_list(
+    body: Mapping[str, Any], model_type: str, image_input_only: bool = False
+) -> List[str]:
     """Ids of models of `model_type` from an OpenAI-style /models response.
 
     Accepts both `type`/`model_type` and `id`/`name` spellings so it works
     against the 4yi gateway (which returns {id, type}) without pinning one shape.
+
+    image_input_only: for image-to-video pickers, keep only video models the
+    gateway marks as accepting an input image (video_image_input=True). Drops
+    text-to-video models, which report False.
     """
     ids: List[str] = []
     for item in body.get("data") or []:
@@ -98,8 +104,11 @@ def parse_model_list(body: Mapping[str, Any], model_type: str) -> List[str]:
             continue
         item_type = item.get("type") or item.get("model_type")
         model_id = item.get("id") or item.get("name")
-        if item_type == model_type and model_id:
-            ids.append(str(model_id))
+        if item_type != model_type or not model_id:
+            continue
+        if image_input_only and not item.get("video_image_input"):
+            continue
+        ids.append(str(model_id))
     return ids
 
 
